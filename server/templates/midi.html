@@ -1,0 +1,122 @@
+<html>
+  <body style="color: white;">
+    SALAT
+    <div id="log"></div>
+    <canvas style="position: absolute; top: 0; left: 0;" id="bg"></canvas>
+    <canvas id="c1" width="250px" height="500px"></canvas>
+    <canvas id="c2" width="500px" height="500px"></canvas>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"></script>
+    <script>
+      var canvas = document.getElementById("c1");
+      var canvas2 = document.getElementById("c2");
+      var bg = document.getElementById("bg");
+      bg.style.width = "8000px";
+      bg.height = 800;
+      var ctx = canvas.getContext("2d");
+      var ctx2 = canvas2.getContext("2d");
+      var ctxbg = bg.getContext("2d");
+      var log = document.getElementById("log");
+      ctx.fillStyle = "blue";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx2.fillStyle = "red";
+      ctx2.fillRect(0, 0, canvas.width, canvas.height);
+      ctxbg.fillStyle = "yellow";
+      ctxbg.fillRect(0, 0, canvas.width, canvas.height);
+      var s = chroma.scale(["yellow", "red", "black"]);
+
+      var midi, data;
+      // request MIDI access
+      if (navigator.requestMIDIAccess) {
+        navigator
+          .requestMIDIAccess({
+            sysex: false,
+          })
+          .then(onMIDISuccess, onMIDIFailure);
+      } else {
+        alert("No MIDI support in your browser.");
+      }
+
+      // midi functions
+      function onMIDISuccess(midiAccess) {
+        // when we get a succesful response, run this code
+        midi = midiAccess; // this is our raw MIDI data, inputs, outputs, and sysex status
+
+        var inputs = midi.inputs.values();
+        log.innerText = inputs;
+        // loop over all available inputs and listen for any MIDI input
+        for (
+          var input = inputs.next();
+          input && !input.done;
+          input = inputs.next()
+        ) {
+          // each time there is a midi message call the onMIDIMessage function
+          input.value.onmidimessage = onMIDIMessage;
+        }
+      }
+
+      function onMIDIFailure(error) {
+        // when we get a failed response, run this code
+        console.log(
+          "No access to MIDI devices or your browser doesn't support WebMIDI API. Please use WebMIDIAPIShim " +
+            error
+        );
+      }
+
+      function onMIDIMessage(message) {
+        data = message.data; // this gives us our [command/channel, note, velocity] data.
+        if (data.length > 1 && data[0] === 153 && data[2] > 0) {
+          console.log("MIDI data", data); // MIDI data [144, 63, 73]
+          // ctx.beginPath();
+          // ctx.arc(Math.floor(Math.random()*500), Math.floor(Math.random()*500), 50, 0, 2 * Math.PI);
+          // ctx.stroke();
+          // ctx.fillStyle = 'white'
+          // ctx.fill()
+          s = chroma.scale([chroma.random(), chroma.random(), chroma.random()]);
+          const cctx = data[1] === 64 ? 1 : 0;
+        }
+      }
+      window.addEventListener("keydown", (e) => {
+        console.log(e.key);
+        switch (e.key) {
+          case "q":
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle =
+              "#" + Math.floor(Math.random() * 16777215).toString(16);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          case "w":
+            ctx2.clearRect(0, 0, canvas.width, canvas.height);
+            ctx2.fillStyle =
+              "#" + Math.floor(Math.random() * 16777215).toString(16);
+            ctx2.fillRect(0, 0, canvas.width, canvas.height);
+        }
+      });
+      navigator.mediaDevices
+        .getUserMedia({
+          audio: true,
+        })
+        .then((stream) => {
+          const audioCtx = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          analyser = audioCtx.createAnalyser();
+          var source = audioCtx.createMediaStreamSource(stream);
+          //   source.connect(audioCtx.destination);
+          source.connect(analyser);
+          analyser.fftSize = 256;
+          var bufferLength = analyser.frequencyBinCount;
+          const dataArray = new Uint8Array(bufferLength);
+          const animate = () => {
+            requestAnimationFrame(animate);
+            analyser.getByteFrequencyData(dataArray);
+            ctxbg.clearRect(0, 0, canvas.width, canvas.height);
+            ctxbg.fillStyle = s(dataArray[0] / 255);
+            ctxbg.fillRect(0, 0, canvas.width, canvas.height);
+
+            // ctx2.clearRect(0, 0, canvas.width, canvas.height);
+            // ctx2.fillStyle = c(dataArray[0] / 255);
+            // ctx2.fillRect(0, 0, canvas.width, canvas.height);
+          };
+          animate();
+        });
+    </script>
+  </body>
+</html>

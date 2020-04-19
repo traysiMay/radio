@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Webcam Audio Visualizer | Demo 1 | Codrops</title>
+    <meta
+      name="description"
+      content="Demo of the tutorial on how to create a Three.js powered audio visualizer that takes input from the webcam."
+    />
+    <meta
+      name="keywords"
+      content="three.js, audio visualizer, webcam, web development, javascript, webgl"
+    />
+    <meta name="author" content="Codrops" />
+    <link
+      href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono:400,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" type="text/css" href="css/base.css" />
+  </head>
+
+  <body class="demo-1 cda-noimg cda-naked cda-alignright">
+    <main>
+      <div class="frame">
+          <img id="teemo">
+      <div id="content" class="content">
+        <video id="video" class="hidden"></video>
+        <div id="message" class="hidden">Please allow camera access.</div>
+      </div>
+    </main>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+
+    <script src="index.js"></script>
+   <script>
+      //  setTimeout(() =>  document.querySelector('video').muted = true, 1000)
+   </script>
+  </body>
+</html>

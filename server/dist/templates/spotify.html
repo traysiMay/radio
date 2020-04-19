@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Spotify Web Playback SDK Quick Start Tutorial</title>
+  </head>
+  <body>
+    <h1>Spotify Web Playback SDK Quick Start Tutorial</h1>
+    <h2>
+      Open your console log: <code>View > Developer > JavaScript Console</code>
+    </h2>
+
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+    <script>
+      const refresh_token =
+        "AQBeSQcKPS7utXW-A2rPTMCh2pTkcTwpabj2fN7vfRL2etFxyn8p1fC6hpXNmUSyDa14vL7T_ouhQzQO9nIgyLOfRNyztz5Oo7RVRWXMmOfTpsNSoZCTwIuicaJ654sSEr8";
+      const refresh = {
+        grant_type: "refresh_token",
+        refresh_token,
+      };
+      const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
+
+      const REFRESH_BODY = Object.keys(refresh)
+        .map((key) => {
+          return (
+            encodeURIComponent(key) + "=" + encodeURIComponent(refresh[key])
+          );
+        })
+        .join("&");
+
+      const getRefreshToken = async () => {
+        const results = await fetch(SPOTIFY_TOKEN_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization:
+              "Basic Mzc2NDdmMzNlNzA0NDRkYmIxYzU3ODYzZTA5OTkzOGQ6YzQyZjhkODM4ZjE2NGQ5MTg5MmJhNzdkOWE3NTk1ZjE=",
+          },
+          body: REFRESH_BODY,
+        }).then((r) => r.json());
+        return results.access_token;
+      };
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        async function main() {
+          const token = await getRefreshToken();
+          var socket = io();
+          socket.emit("PLAYER");
+          let player;
+          player = new Spotify.Player({
+            name: "a",
+            getOAuthToken: (cb) => {
+              cb(token);
+            },
+            spotify_uri: "spotify:track:7xGfFoTpQ2E7fRF5lN10tr",
+          });
+
+          // Error handling
+          player.addListener("initialization_error", ({ message }) => {
+            console.error(message);
+          });
+          player.addListener("authentication_error", async ({ message }) => {
+            player.disconnect();
+            const token = await getRefreshToken();
+            player = new Spotify.Player({
+              name: "a",
+              getOAuthToken: (cb) => {
+                cb(token);
+              },
+              spotify_uri: "spotify:track:7xGfFoTpQ2E7fRF5lN10tr",
+            });
+            player.connect();
+            console.log("RECONNECT");
+            console.error(message);
+          });
+          player.addListener("account_error", ({ message }) => {
+            console.log("account error");
+            console.error(message);
+          });
+          player.addListener("playback_error", ({ message }) => {
+            console.log("playback error");
+            console.error(message);
+          });
+
+          // Playback status updates
+          player.addListener("player_state_changed", (state) => {
+            console.log(state);
+            const {
+              track_window: { current_track, next_tracks },
+            } = state;
+            console.log(current_track.name, current_track);
+            console.log(next_tracks);
+            socket.emit("CURRENT_NEXT_TRACKS", { current_track, next_tracks });
+          });
+
+          // Ready
+          player.addListener("ready", ({ device_id }) => {
+            console.log("Ready with Device ID", device_id);
+          });
+
+          // Not Ready
+          player.addListener("not_ready", ({ device_id }) => {
+            console.log("Device ID has gone offline", device_id);
+          });
+
+          // Connect to the player!
+          player.connect();
+          window.player = player;
+        }
+        main();
+      };
+    </script>
+  </body>
+</html>

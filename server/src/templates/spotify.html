@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Spotify Web Playback SDK Quick Start Tutorial</title>
+  </head>
+  <body>
+    <h1>Spotify Web Playback SDK Quick Start Tutorial</h1>
+    <h2>
+      Open your console log: <code>View > Developer > JavaScript Console</code>
+    </h2>
+
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+    <script>
+      const refresh_token =
+        "AQBeSQcKPS7utXW-A2rPTMCh2pTkcTwpabj2fN7vfRL2etFxyn8p1fC6hpXNmUSyDa14vL7T_ouhQzQO9nIgyLOfRNyztz5Oo7RVRWXMmOfTpsNSoZCTwIuicaJ654sSEr8";
+      const refresh = {
+        grant_type: "refresh_token",
+        refresh_token,
+      };
+      const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
+      const SPOTIFY_PUT_DEVICE_URL = "https://api.spotify.com/v1/me/player";
+
+      const REFRESH_BODY = Object.keys(refresh)
+        .map((key) => {
+          return (
+            encodeURIComponent(key) + "=" + encodeURIComponent(refresh[key])
+          );
+        })
+        .join("&");
+
+      const getRefreshToken = async () => {
+        const results = await fetch(SPOTIFY_TOKEN_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization:
+              "Basic Mzc2NDdmMzNlNzA0NDRkYmIxYzU3ODYzZTA5OTkzOGQ6YzQyZjhkODM4ZjE2NGQ5MTg5MmJhNzdkOWE3NTk1ZjE=",
+          },
+          body: REFRESH_BODY,
+        }).then((r) => r.json());
+        return results.access_token;
+      };
+
+      async function setDevice(token, deviceId) {
+        const body = {
+          device_ids: [deviceId],
+          play: "true",
+        };
+        await fetch(SPOTIFY_PUT_DEVICE_URL, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify(body),
+        });
+      }
+      var socket = io("https://relay.raptor.pizza", {
+        path: "/radio/socket.io",
+        transport: ["websocket"],
+      });
+      let player;
+      let deviceId;
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        async function main() {
+          console.log(socket);
+          socket.emit("PLAYER");
+
+          createPlayer();
+          async function createPlayer() {
+            const token = await getRefreshToken();
+            player = new Spotify.Player({
+              name: "Raptor Radio",
+              getOAuthToken: (cb) => {
+                cb(token);
+              },
+              uri: "spotify:track:0nBucamQ9LLOk6p8bhNQO5",
+            });
+
+            // Error handling
+            player.addListener("initialization_error", ({ message }) => {
+              console.error(message);
+            });
+            player.addListener("authentication_error", async ({ message }) => {
+              player.disconnect();
+              createPlayer();
+              console.log("RECONNECT");
+              console.error(message);
+            });
+            player.addListener("account_error", ({ message }) => {
+              console.log("account error");
+              console.error(message);
+            });
+            player.addListener("playback_error", async ({ message }) => {
+              console.log("playback error");
+              console.error(message);
+              player.disconnect();
+              createPlayer();
+            });
+
+            // Playback status updates
+            player.addListener("player_state_changed", (state) => {
+              console.log(state);
+              const {
+                track_window: { current_track, next_tracks },
+              } = state;
+              console.log(current_track.name, current_track);
+              console.log(next_tracks);
+              socket.emit("CURRENT_NEXT_TRACKS", {
+                current_track,
+                next_tracks,
+              });
+            });
+
+            // Ready
+            player.addListener("ready", ({ device_id }) => {
+              console.log("Ready with Device ID", device_id);
+              setDevice(token, device_id);
+            });
+
+            // Not Ready
+            player.addListener("not_ready", ({ device_id }) => {
+              console.log("Device ID has gone offline", device_id);
+            });
+
+            // Connect to the player!
+            player.connect();
+            window.player = player;
+          }
+        }
+        main();
+      };
+    </script>
+  </body>
+</html>
