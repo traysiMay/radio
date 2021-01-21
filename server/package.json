@@ -16,7 +16,7 @@
     "pg": "^8.0.0",
     "randomcolor": "^0.5.4",
     "reflect-metadata": "^0.1.10",
-    "socket.io": "^2.3.0",
+    "socket.io": "^2.4.0",
     "typeorm": "0.2.18"
   },
   "scripts": {
